@@ -205,7 +205,7 @@ tbody tr.saturday-row{background:#fff8f0;}
 <body>
 <div id="loader"><span>Loading...</span><span id="loaderMsg"></span></div>
 <div id="toast"></div>
-
+ 
 <div id="adminView">
 <div id="dblog"><strong>⚠ Database Error</strong><pre id="dblogtext"></pre></div>
 <div class="hospital-header">
@@ -264,7 +264,7 @@ tbody tr.saturday-row{background:#fff8f0;}
   <div class="legend-item"><span style="font-size:0.68rem;">Sunday = one from each unit</span></div>
 </div>
 </div>
-
+ 
 <!-- PORTAL -->
 <div id="portalView">
   <div class="portal-header">
@@ -315,7 +315,7 @@ tbody tr.saturday-row{background:#fff8f0;}
   </div>
   <div class="portal-note">Changes save instantly. Close this tab when you're done.</div>
 </div>
-
+ 
 <!-- Staff Links Modal -->
 <div id="staffLinksModal" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:620px;">
@@ -329,7 +329,7 @@ tbody tr.saturday-row{background:#fff8f0;}
     </div>
   </div>
 </div>
-
+ 
 <!-- Auto-fill Modal -->
 <div id="autoFillModal" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:740px;">
@@ -346,12 +346,12 @@ tbody tr.saturday-row{background:#fff8f0;}
     </div>
   </div>
 </div>
-
+ 
 <script>
 /*
   SUPABASE: run once —
   ALTER TABLE public.doctors ADD COLUMN IF NOT EXISTS unit text DEFAULT 'unit1';
-
+ 
   CREATE TABLE IF NOT EXISTS public.want_dates (
     id bigint generated always as identity primary key,
     doctor_name text not null,
@@ -361,12 +361,12 @@ tbody tr.saturday-row{background:#fff8f0;}
   );
   ALTER TABLE public.want_dates ENABLE ROW LEVEL SECURITY;
   CREATE POLICY "anon_all" ON public.want_dates FOR ALL TO anon USING (true) WITH CHECK (true);
-
+ 
   UNIT SCHEDULE:
   Week 0 (days 1-7):  Unit1=Mon/Wed/Fri, Unit2=Tue/Thu/Sat
   Week 1 (days 8-14): Unit1=Tue/Thu/Sat, Unit2=Mon/Wed/Fri  (alternates)
   Sunday = BOTH (slot1 → Unit1 doctor, slot2 → Unit2 doctor)
-
+ 
   On a Unit1 day: both doctor dropdowns show only Unit1 doctors
   On a Unit2 day: both doctor dropdowns show only Unit2 doctors
   On Sunday:      slot1 shows Unit1 doctors, slot2 shows Unit2 doctors
@@ -374,7 +374,7 @@ tbody tr.saturday-row{background:#fff8f0;}
 const BASE='https://zmjfzhpypaiczaricoxm.supabase.co/rest/v1';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptamZ6aHB5cGFpY3phcmljb3htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NDU3MTQsImV4cCI6MjA4OTIyMTcxNH0.Q6HtgDA1wm3_FjmUbM_DdBWKIe3zHwvkn-egOu1hXtE';
 const HDR={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation','Accept-Profile':'public','Content-Profile':'public'};
-
+ 
 async function api(method,table,params='',body=null){
   const opts={method,headers:{...HDR}};
   if(body)opts.body=JSON.stringify(body);
@@ -385,16 +385,16 @@ async function api(method,table,params='',body=null){
   if(!res.ok)throw data||{message:res.statusText};
   return data;
 }
-
+ 
 const SHIFTS=['—','REG','FULL','LEAVE'];
 const SHIFT_LABELS={'—':'—','REG':'Regular','FULL':'Full Day','LEAVE':'Leave'};
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
+ 
 let doctors=[],doctorUnits={},dutiesMap={},notesMap={},unavailabilityMap={},wantDatesMap={};
 const now=new Date();
 let curYear=now.getFullYear(),curMonth=now.getMonth(),pendingFillResult=null;
-
+ 
 // ── Schedule helpers ──────────────────────────────────────────
 function getScheduledUnit(y,m,day){
   const dow=new Date(y,m,day).getDay();
@@ -409,7 +409,7 @@ function getSlotUnits(y,m,day){
 }
 function getDoctorUnit(n){return doctorUnits[n]||'unit1';}
 function getUnitDoctors(u){return doctors.filter(d=>getDoctorUnit(d)===u);}
-
+ 
 // ── Helpers ───────────────────────────────────────────────────
 function toast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#b71c1c':'#1a2540';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);}
 function showError(ctx,err){const msg=err?.message||err?.details||err?.error||JSON.stringify(err);document.getElementById('dblogtext').textContent='Context : '+ctx+'\nMessage : '+msg+(err?.code?'\nCode    : '+err.code:'')+(err?.hint?'\nHint    : '+err.hint:'');document.getElementById('dblog').classList.add('visible');document.getElementById('dbDot').className='status-dot offline';document.getElementById('dbStatus').textContent='DB Error';}
@@ -420,13 +420,13 @@ function prevDate(ds){const d=new Date(ds);d.setDate(d.getDate()-1);return d.toI
 function nextDate(ds){const d=new Date(ds);d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
 function esc(s){return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-
+ 
 function getPdoForDate(ds){
   const prev=prevDate(ds),pdoNames=[];
   ['s1','s2'].forEach(slot=>{const d=dutiesMap[prev+'_'+slot];if(d&&d.shift_type==='FULL'&&d.doctor_name&&!pdoNames.includes(d.doctor_name))pdoNames.push(d.doctor_name);});
   return pdoNames;
 }
-
+ 
 // ── Data loaders ──────────────────────────────────────────────
 async function loadDoctors(){
   try{const data=await api('GET','doctors','select=name,unit&order=created_at.asc');doctors=data.map(d=>d.name);doctorUnits={};data.forEach(d=>{doctorUnits[d.name]=d.unit||'unit1';});clearError();}
@@ -461,7 +461,7 @@ async function loadMonthData(){
     clearError();
   }catch(e){showError('Loading month data',e);}
 }
-
+ 
 function updateSummary(){
   const ts=new Date().toISOString().slice(0,10),todayDocs=new Set(),fullToday=new Set();
   ['s1','s2'].forEach(slot=>{const d=dutiesMap[ts+'_'+slot];if(d&&d.doctor_name)todayDocs.add(d.doctor_name);if(d&&d.shift_type==='FULL'&&d.doctor_name)fullToday.add(d.doctor_name);});
@@ -471,7 +471,7 @@ function updateSummary(){
   document.getElementById('sumFull').textContent=fullToday.size||'0';
   document.getElementById('sumPdo').textContent=pdo.length||'0';
 }
-
+ 
 // ── Doctor CRUD ───────────────────────────────────────────────
 async function addDoctor(){
   const inp=document.getElementById('docInput'),unitSel=document.getElementById('docUnitSelect');
@@ -504,7 +504,7 @@ async function toggleDoctorUnit(name){
     renderChips();render();
   }catch(e){showError('Toggling unit',e);toast('Failed',true);}
 }
-
+ 
 // ── Save ──────────────────────────────────────────────────────
 async function saveDuty(date,slot,doctor_name,shift_type){
   try{
@@ -519,7 +519,7 @@ async function saveNote(date,note){
     ex&&ex.length?await api('PATCH','notes','date=eq.'+date,{note}):await api('POST','notes','',{date,note});
   }catch(e){showError('Saving note '+date,e);}
 }
-
+ 
 // ── Handlers ──────────────────────────────────────────────────
 function handleDocChange(sel,date,slot){
   const key=date+'_'+slot;
@@ -549,13 +549,13 @@ function buildWantHtml(ds){
 }
 let noteTimers={};
 function handleNoteChange(inp,date){notesMap[date]=inp.value;clearTimeout(noteTimers[date]);noteTimers[date]=setTimeout(()=>saveNote(date,inp.value),800);}
-
+ 
 function changeMonth(dir){
   curMonth+=dir;
   if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}
   loader(true,'');loadMonthData().then(()=>{loader(false);updateSummary();render();});
 }
-
+ 
 // ── Render chips ──────────────────────────────────────────────
 function renderChips(){
   const wrap=document.getElementById('doctorChipsWrap');
@@ -571,7 +571,7 @@ function renderChips(){
   }
   wrap.innerHTML=row(u1,'unit1')+'<hr class="chips-divider">'+row(u2,'unit2');
 }
-
+ 
 // ── Render table ──────────────────────────────────────────────
 function render(){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate(),todayStr=new Date().toISOString().slice(0,10);
@@ -585,14 +585,14 @@ function render(){
     <th style="min-width:140px">Want Dates</th>
     <th style="min-width:130px">Notes</th>
   </tr>`;
-
+ 
   function mkDocOpts(unit,val){
     const uDocs=getUnitDoctors(unit);
     return'<option value="">— Doctor —</option>'+uDocs.map(d=>`<option value="${d}"${d===val?' selected':''}>${d}</option>`).join('');
   }
   const mkShift=v=>SHIFTS.map(s=>`<option value="${s}"${s===v?' selected':''}>${SHIFT_LABELS[s]}</option>`).join('');
   const sCls=v=>v&&v!=='—'?' s-'+v:'';
-
+ 
   let html='';
   for(let day=1;day<=days;day++){
     const dt=new Date(y,m,day),dow=dt.getDay(),ds=fmtDate(y,m,day);
@@ -601,14 +601,14 @@ function render(){
     const d2=dutiesMap[ds+'_s2']||{doctor_name:'',shift_type:'—'};
     const hasFull=d1.shift_type==='FULL'||d2.shift_type==='FULL';
     const nt=(notesMap[ds]||'').replace(/"/g,'&quot;');
-
+ 
     // Every day has both units
     const badge=`<span class="unit-day-badge udb-u1" style="margin-left:4px">U1</span><span class="unit-day-badge udb-u2" style="margin-left:2px">U2</span>`;
-
+ 
     let cls=ds===todayStr?'today-row':dow===0?'sunday':'';
     if(dow===6)cls+=(cls?' ':'')+'saturday-row';
     if(hasFull)cls+=(cls?' ':'')+'has-full';
-
+ 
     html+=`<tr class="${cls}" data-date="${ds}">
       <td class="date-cell">${String(day).padStart(2,'0')}.${String(m+1).padStart(2,'0')}.${String(y).slice(2)}</td>
       <td class="day-cell">${DAYS_SHORT[dow]}${badge}</td>
@@ -633,7 +633,7 @@ function render(){
   }
   document.getElementById('tableBody').innerHTML=html;
 }
-
+ 
 // ── Staff Links ───────────────────────────────────────────────
 function openStaffLinks(){
   if(!doctors.length){toast('No doctors added yet');return;}
@@ -657,7 +657,7 @@ function copyLink(idx,url){
   if(navigator.clipboard)navigator.clipboard.writeText(url).then(done).catch(()=>fallbackCopy(url,done));else fallbackCopy(url,done);
 }
 function fallbackCopy(url,cb){const ta=document.createElement('textarea');ta.value=url;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);cb();}
-
+ 
 // ── Auto-fill ─────────────────────────────────────────────────
 function openAutoFill(){
   if(!doctors.length){toast('No doctors added yet');return;}
@@ -670,29 +670,32 @@ function openAutoFill(){
   document.getElementById('autoFillModal').classList.remove('hidden');
   setTimeout(()=>{const res=computeAutoFill();pendingFillResult=res.result;renderAutoFillPreview(res);document.getElementById('applyFillBtn').disabled=false;},60);
 }
-
+ 
 function computeAutoFill(){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate();
   const fullDayNums=new Set();for(let d=4;d<=days;d+=4)fullDayNums.add(d);
-  const result={},fullCount={},totalCount={},satAssigned=new Set(),conflicts=[];
+  const result={},fullCount={},totalCount={},satAssigned=new Set(),sunAssigned=new Set(),conflicts=[];
   doctors.forEach(d=>{fullCount[d]=0;totalCount[d]=0;});
-
+ 
   for(let day=1;day<=days;day++){
     const ds=fmtDate(y,m,day),prevDs=prevDate(ds),dow=new Date(y,m,day).getDay();
-    const isSat=dow===6,isFullDay=fullDayNums.has(day);
+    const isSat=dow===6,isSun=dow===0,isFullDay=fullDayNums.has(day);
     const{s1:s1u,s2:s2u}=getSlotUnits(y,m,day);
-
+ 
     const pdoToday=new Set();
     if(result[prevDs]){['s1','s2'].forEach(slot=>{const a=result[prevDs][slot];if(a&&a.shift==='FULL')pdoToday.add(a.doctor);});}
     else if(day===1){['s1','s2'].forEach(slot=>{const d=dutiesMap[prevDs+'_'+slot];if(d&&d.shift_type==='FULL'&&d.doctor_name)pdoToday.add(d.doctor_name);});}
-
+ 
     const unavailToday=unavailabilityMap[ds]||new Set();
     const wantToday=wantDatesMap[ds]||new Set();
-
+ 
     function pickBest(unit,wantSet){
       const pool=getUnitDoctors(unit);
-      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&(!isSat||!satAssigned.has(d)));
-      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&(!isSat||!satAssigned.has(d)));
+      // Saturday rule: if a staff has already done a Saturday this month, skip them on all subsequent Saturdays
+      // Sunday rule: if a staff has already done a Sunday this month, skip them on all subsequent Sundays
+      const weekendExcluded=d=>(isSat&&satAssigned.has(d))||(isSun&&sunAssigned.has(d));
+      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
+      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d));
       if(!a.length)a=[...pool];
@@ -702,24 +705,24 @@ function computeAutoFill(){
         return isFullDay?fullCount[a]-fullCount[b]||totalCount[a]-totalCount[b]:totalCount[a]-totalCount[b];
       })[0]||null;
     }
-
+ 
     const doc1=pickBest('unit1',wantToday);
     const doc2=pickBest('unit2',wantToday);
     const shift=isFullDay?'FULL':'REG';
-
+ 
     const msgs=[];
     if(!doc1)msgs.push('No doctor for slot1 (Unit 1)');
     if(!doc2)msgs.push('No doctor for slot2 (Unit 2)');
-
-    if(doc1){totalCount[doc1]++;if(isFullDay)fullCount[doc1]++;if(isSat)satAssigned.add(doc1);}
-    if(doc2){totalCount[doc2]++;if(isFullDay)fullCount[doc2]++;if(isSat)satAssigned.add(doc2);}
-
+ 
+    if(doc1){totalCount[doc1]++;if(isFullDay)fullCount[doc1]++;if(isSat)satAssigned.add(doc1);if(isSun)sunAssigned.add(doc1);}
+    if(doc2){totalCount[doc2]++;if(isFullDay)fullCount[doc2]++;if(isSat)satAssigned.add(doc2);if(isSun)sunAssigned.add(doc2);}
+ 
     result[ds]={s1:doc1?{doctor:doc1,shift,unit:'unit1'}:null,s2:doc2?{doctor:doc2,shift,unit:'unit2'}:null,su:'both',conflict:msgs.length>0,conflictMsg:msgs.join('; ')};
     if(msgs.length)conflicts.push({date:ds,msg:msgs.join('; ')});
   }
   return{result,conflicts,fullCount,totalCount};
 }
-
+ 
 function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate();
   const u1=getUnitDoctors('unit1'),u2=getUnitDoctors('unit2');
@@ -746,7 +749,7 @@ function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
   html+=`</tbody></table>`;
   document.getElementById('autoFillBody').innerHTML=html;
 }
-
+ 
 async function applyAutoFill(){
   if(!pendingFillResult)return;
   const btn=document.getElementById('applyFillBtn');btn.disabled=true;btn.textContent='Saving…';loader(true,'Applying…');
@@ -766,7 +769,7 @@ async function applyAutoFill(){
     loader(false);closeModal('autoFillModal');clearError();updateSummary();render();toast('Auto-fill applied ✓');
   }catch(e){loader(false);showError('Applying auto-fill',e);toast('Apply failed',true);btn.disabled=false;btn.textContent='⚡ Apply to Roster';}
 }
-
+ 
 // ── Import March 2026 ─────────────────────────────────────────
 const MARCH_DATA=[
   ['2026-03-01','Dr.Divya','REG','Dr.Anuthomas','FULL','Thiruverkadu: 3.3.26-Dr.Sharanya'],
@@ -834,10 +837,10 @@ async function importMarch2026(){
     toast('March 2026 imported ✓');
   }catch(e){loader(false);showError('Importing March 2026',e);toast('Import failed',true);}
 }
-
+ 
 // ── Doctor Portal ─────────────────────────────────────────────
 let portalDoctor='',portalYear=now.getFullYear(),portalMonth=now.getMonth(),portalUnavailSet=new Set(),portalWantSet=new Set(),portalDoctorUnit='unit1';
-
+ 
 async function initPortal(doctorName){
   document.getElementById('adminView').classList.add('hidden');
   document.getElementById('portalView').classList.add('active');
@@ -891,7 +894,7 @@ function renderPortalSummary(){
   document.getElementById('portalSummaryText').innerHTML=sorted.length?`You've marked <strong>${sorted.length}</strong> day${sorted.length>1?'s':''} unavailable this month:`:"No unavailable dates marked. You're fully available!";
   document.getElementById('portalUnavailList').innerHTML=sorted.map(ds=>{const d=new Date(ds);return`<span class="unavail-tag">${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}</span>`;}).join('');
 }
-
+ 
 function renderPortalWantCalendar(){
   const y=portalYear,m=portalMonth,days=new Date(y,m+1,0).getDate(),firstDow=new Date(y,m,1).getDay(),todayStr=new Date().toISOString().slice(0,10);
   let html=['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div class="cal-head">${d}</div>`).join('');
@@ -907,13 +910,13 @@ function renderPortalWantCalendar(){
   }
   document.getElementById('portalWantCalGrid').innerHTML=html;
 }
-
+ 
 function renderPortalWantSummary(){
   const sorted=[...portalWantSet].sort();
   document.getElementById('portalWantSummaryText').innerHTML=sorted.length?`You've marked <strong>${sorted.length}</strong> preferred day${sorted.length>1?'s':''} this month:`:'No preferred dates marked yet.';
   document.getElementById('portalWantList').innerHTML=sorted.map(ds=>{const d=new Date(ds);return`<span class="want-tag">${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}</span>`;}).join('');
 }
-
+ 
 async function portalWantToggle(ds){
   const s=document.getElementById('portalWantStatus');s.className='portal-status saving';
   if(portalWantSet.has(ds)){
@@ -941,7 +944,7 @@ async function portalToggle(ds){
 document.getElementById('docInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDoctor();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(el=>el.classList.add('hidden'));});
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.add('hidden');});});
-
+ 
 const _p=new URLSearchParams(window.location.search),_pd=_p.get('doctor');
 if(_pd){initPortal(decodeURIComponent(_pd));}
 else{(async()=>{loader(true,'');await Promise.all([loadDoctors(),loadMonthData()]);loader(false);renderChips();updateSummary();render();})();}
