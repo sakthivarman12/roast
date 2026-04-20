@@ -114,7 +114,24 @@ input.note-input:focus{background:#fffde7;}
 .legend{display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;font-size:0.7rem;color:var(--muted);}
 .legend-item{display:flex;align-items:center;gap:5px;}
 .legend-box{width:12px;height:12px;border-radius:2px;border:1px solid;}
-@media print{body{padding:0;}.toolbar,.doctor-chips-wrap,.legend,#toast,#dblog,.summary-bar{display:none!important;}table{font-size:0.7rem;}}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  body{padding:0;}
+  .toolbar,.doctor-chips-wrap,.legend,#toast,#dblog,.summary-bar{display:none!important;}
+  table{font-size:0.7rem;}
+  .hospital-header{background:#1a2540!important;color:#fff!important;border-radius:0;}
+  .hospital-header h1,.hospital-header h2,.hospital-header h3{color:#fff!important;}
+  td.date-cell{font-weight:600!important;font-size:0.72rem!important;color:#1a1a1a!important;white-space:nowrap;}
+  td.pdo-cell{display:table-cell!important;}
+  td.note-cell{display:table-cell!important;}
+  th.want-col,td.want-col{display:none!important;}
+  select.doc-select,select.shift-select{display:none!important;}
+  input.note-input{display:none!important;}
+  .print-doc-name{display:inline!important;}
+  .print-shift{display:inline!important;}
+  .print-note{display:inline!important;}
+  .pdo-badge,.slot-label,.unit-day-badge{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;}
 .modal-overlay.hidden{display:none;}
@@ -237,7 +254,7 @@ tbody tr.saturday-row{background:#fff8f0;}
   <button class="import-btn" onclick="importMarch2026()">&#8659; Import March 2026</button>
   <button class="links-btn" onclick="openStaffLinks()">📅 Staff Links</button>
   <button class="autofill-btn" onclick="openAutoFill()">⚡ Auto-fill</button>
-  <button class="icon-btn" onclick="window.print()">&#128438; Print</button>
+  <button class="icon-btn" onclick="requestAnimationFrame(()=>setTimeout(()=>window.print(),100))">&#128438; Print</button>
   <span style="font-size:0.68rem;color:var(--muted);margin-left:auto;display:flex;align-items:center">
     <span class="status-dot" id="dbDot"></span><span id="dbStatus">Connecting...</span>
   </span>
@@ -582,7 +599,7 @@ function render(){
     <th class="left" style="min-width:95px">Day</th>
     <th style="min-width:420px">Doctors on Duty</th>
     <th style="min-width:180px">PDO Staff</th>
-    <th style="min-width:140px">Want Dates</th>
+    <th class="want-col" style="min-width:140px">Want Dates</th>
     <th style="min-width:130px">Notes</th>
   </tr>`;
  
@@ -617,18 +634,22 @@ function render(){
           <div class="duty-row-item">
             <span class="slot-label lbl-u1">U1</span>
             <select class="doc-select" onchange="handleDocChange(this,'${ds}','s1')">${mkDocOpts('unit1',d1.doctor_name)}</select>
+            <span class="print-doc-name" style="display:none;font-size:0.72rem;min-width:110px">${d1.doctor_name||'—'}</span>
             <select class="shift-select${sCls(d1.shift_type)}" onchange="handleShiftChange(this,'${ds}','s1')">${mkShift(d1.shift_type)}</select>
+            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${d1.shift_type==='FULL'?'background:#e3f2fd;color:#1565c0':d1.shift_type==='REG'?'background:#e8f5e9;color:#2e7d32':d1.shift_type==='LEAVE'?'background:#fce4ec;color:#c62828':''}">${SHIFT_LABELS[d1.shift_type]||d1.shift_type}</span>
           </div>
           <div class="duty-row-item">
             <span class="slot-label lbl-u2">U2</span>
             <select class="doc-select" onchange="handleDocChange(this,'${ds}','s2')">${mkDocOpts('unit2',d2.doctor_name)}</select>
+            <span class="print-doc-name" style="display:none;font-size:0.72rem;min-width:110px">${d2.doctor_name||'—'}</span>
             <select class="shift-select${sCls(d2.shift_type)}" onchange="handleShiftChange(this,'${ds}','s2')">${mkShift(d2.shift_type)}</select>
+            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${d2.shift_type==='FULL'?'background:#e3f2fd;color:#1565c0':d2.shift_type==='REG'?'background:#e8f5e9;color:#2e7d32':d2.shift_type==='LEAVE'?'background:#fce4ec;color:#c62828':''}">${SHIFT_LABELS[d2.shift_type]||d2.shift_type}</span>
           </div>
         </div>
       </td>
       <td class="pdo-cell">${buildPdoHtml(ds)}</td>
-      <td class="pdo-cell">${buildWantHtml(ds)}</td>
-      <td class="note-cell"><input class="note-input" type="text" placeholder="remarks…" value="${nt}" onchange="handleNoteChange(this,'${ds}')"/></td>
+      <td class="pdo-cell want-col">${buildWantHtml(ds)}</td>
+      <td class="note-cell"><input class="note-input" type="text" placeholder="remarks…" value="${nt}" onchange="handleNoteChange(this,'${ds}')"/><span class="print-note" style="display:none;font-size:0.71rem;color:#333">${(notesMap[ds]||'')}</span></td>
     </tr>`;
   }
   document.getElementById('tableBody').innerHTML=html;
@@ -691,8 +712,6 @@ function computeAutoFill(){
  
     function pickBest(unit,wantSet){
       const pool=getUnitDoctors(unit);
-      // Saturday rule: if a staff has already done a Saturday this month, skip them on all subsequent Saturdays
-      // Sunday rule: if a staff has already done a Sunday this month, skip them on all subsequent Sundays
       const weekendExcluded=d=>(isSat&&satAssigned.has(d))||(isSun&&sunAssigned.has(d));
       let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
