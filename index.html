@@ -217,6 +217,26 @@ input.note-input:focus{background:#fffde7;}
 .want-badge:hover{filter:brightness(0.92);}
 .want-count{display:inline-block;background:var(--reg-text);color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.6rem;font-weight:700;line-height:16px;text-align:center;margin-right:2px;}
 tbody tr.saturday-row{background:#fff8f0;}
+/* Full Day Count Panel */
+.fullday-panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-bottom:1rem;overflow:hidden;}
+.fullday-panel-head{display:flex;align-items:center;justify-content:space-between;padding:0.45rem 1rem;background:#e3f2fd;border-bottom:1px solid var(--full-b);}
+.fullday-panel-head h4{font-size:0.72rem;font-weight:700;color:#1565c0;letter-spacing:0.05em;text-transform:uppercase;}
+.fullday-panel-head span{font-size:0.65rem;color:#1565c0;opacity:0.8;}
+.fullday-unit-section{padding:0.4rem 1rem 0.5rem;}
+.fullday-unit-label{font-size:0.63rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:0.18rem 0.6rem;border-radius:3px;margin:0.35rem 0 0.3rem;display:inline-block;}
+.fullday-unit-label.u1{background:var(--u1-bg);color:var(--u1);border:1px solid var(--u1-b);}
+.fullday-unit-label.u2{background:var(--u2-bg);color:var(--u2);border:1px solid var(--u2-b);}
+.fullday-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.fd-chip{display:inline-flex;align-items:center;gap:5px;border-radius:4px;font-size:0.7rem;padding:0.22rem 0.6rem;border:1px solid;}
+.fd-chip.fd-zero{background:#f5f5f5;color:#888;border-color:#ddd;}
+.fd-chip.fd-low{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;}
+.fd-chip.fd-mid{background:#e3f2fd;color:#1565c0;border-color:#90caf9;}
+.fd-chip.fd-high{background:#fff3e0;color:#e65100;border-color:#ffb74d;}
+.fd-chip .fd-name{font-weight:500;}
+.fd-chip .fd-badge{background:currentColor;color:#fff;border-radius:10px;font-size:0.62rem;font-weight:700;padding:1px 7px;line-height:1.4;opacity:1;filter:none;}
+.fd-chip .fd-badge span{color:#fff;}
+.fd-divider{border:none;border-top:1px solid var(--border);margin:0;}
+.quota-note{font-size:0.65rem;color:var(--muted);padding:0.3rem 1rem 0.4rem;background:#fffde7;border-top:1px solid #f9e79f;display:flex;align-items:center;gap:5px;}
 </style>
 </head>
 <body>
@@ -235,6 +255,17 @@ tbody tr.saturday-row{background:#fff8f0;}
   <div class="summary-item on-duty"><div class="s-val" id="sumOnDuty">—</div><div class="s-lbl">On Duty Today</div></div>
   <div class="summary-item full"><div class="s-val" id="sumFull">—</div><div class="s-lbl">Full Duty Today</div></div>
   <div class="summary-item pdo"><div class="s-val" id="sumPdo">—</div><div class="s-lbl">PDO Today</div></div>
+</div>
+<!-- Full Day Count Panel -->
+<div class="fullday-panel" id="fullDayPanel">
+  <div class="fullday-panel-head">
+    <h4>📊 Full Day Duty Count — <span id="fullDayMonthLabel">—</span></h4>
+    <span id="fullDayQuotaNote"></span>
+  </div>
+  <div id="fullDayBody" style="padding:0.4rem 1rem 0.5rem;">
+    <div style="font-size:0.72rem;color:var(--muted);padding:0.5rem 0;">Loading...</div>
+  </div>
+  <div class="quota-note">⚡ <strong>Auto-fill quota:</strong> Each doctor's full day count this month is used as their cap for next month's auto-fill.</div>
 </div>
 <div class="doctor-chips-wrap" id="doctorChipsWrap"></div>
 <div class="toolbar">
@@ -487,6 +518,41 @@ function updateSummary(){
   document.getElementById('sumOnDuty').textContent=todayDocs.size||'0';
   document.getElementById('sumFull').textContent=fullToday.size||'0';
   document.getElementById('sumPdo').textContent=pdo.length||'0';
+  renderFullDayPanel();
+}
+ 
+// ── Full Day Count Panel ───────────────────────────────────────
+function getFullCountForMonth(){
+  // Count FULL shift duties for each doctor in dutiesMap (current loaded month)
+  const counts={};
+  doctors.forEach(d=>{counts[d]=0;});
+  Object.entries(dutiesMap).forEach(([key,val])=>{
+    if(val&&val.shift_type==='FULL'&&val.doctor_name&&counts.hasOwnProperty(val.doctor_name)){
+      counts[val.doctor_name]++;
+    }
+  });
+  return counts;
+}
+function renderFullDayPanel(){
+  const counts=getFullCountForMonth();
+  const u1=getUnitDoctors('unit1'),u2=getUnitDoctors('unit2');
+  document.getElementById('fullDayMonthLabel').textContent=MONTHS[curMonth]+' '+curYear;
+  // Determine max for colour coding
+  const allVals=doctors.map(d=>counts[d]||0);
+  const maxVal=Math.max(...allVals,1);
+  function chip(d){
+    const n=counts[d]||0;
+    let cls=n===0?'fd-zero':n<=1?'fd-low':n<=3?'fd-mid':'fd-high';
+    return`<div class="fd-chip ${cls}" title="${d}: ${n} full day${n!==1?'s':''}">
+      <span class="fd-name">${d.replace('Dr.','Dr. ')}</span>
+      <span class="fd-badge"><span>${n}</span></span>
+    </div>`;
+  }
+  let html='';
+  if(u1.length){html+=`<div class="fullday-unit-label u1">Unit 1</div><div class="fullday-chips">${u1.map(chip).join('')}</div>`;}
+  if(u2.length){if(u1.length)html+=`<hr class="fd-divider" style="margin:0.4rem -1rem;">`;html+=`<div class="fullday-unit-label u2">Unit 2</div><div class="fullday-chips">${u2.map(chip).join('')}</div>`;}
+  if(!doctors.length)html='<div style="font-size:0.72rem;color:var(--muted);padding:0.3rem 0;">No staff added yet.</div>';
+  document.getElementById('fullDayBody').innerHTML=html;
 }
  
 // ── Doctor CRUD ───────────────────────────────────────────────
@@ -687,9 +753,23 @@ function openAutoFill(){
   pendingFillResult=null;
   document.getElementById('applyFillBtn').disabled=true;
   document.getElementById('autoFillMonthLabel').textContent=MONTHS[curMonth]+' '+curYear;
-  document.getElementById('autoFillBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.8rem;">Computing schedule…</div>';
+  document.getElementById('autoFillBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.8rem;">Loading previous month quota…</div>';
   document.getElementById('autoFillModal').classList.remove('hidden');
-  setTimeout(()=>{const res=computeAutoFill();pendingFillResult=res.result;renderAutoFillPreview(res);document.getElementById('applyFillBtn').disabled=false;},60);
+  (async()=>{
+    let py=curYear,pm=curMonth-1;if(pm<0){pm=11;py--;}
+    const prevDays=new Date(py,pm+1,0).getDate();
+    const prevFrom=fmtDate(py,pm,1),prevTo=fmtDate(py,pm,prevDays);
+    let prevCounts={};
+    try{
+      const prevDuties=await api('GET','duties',`select=doctor_name,shift_type&date=gte.${prevFrom}&date=lte.${prevTo}`);
+      doctors.forEach(d=>{prevCounts[d]=0;});
+      prevDuties.forEach(r=>{if(r.shift_type==='FULL'&&r.doctor_name&&prevCounts.hasOwnProperty(r.doctor_name))prevCounts[r.doctor_name]++;});
+    }catch(e){prevCounts={};}
+    window._prevMonthFullCounts=prevCounts;
+    window._prevMonthLabel=MONTHS[pm]+' '+py;
+    document.getElementById('autoFillBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.8rem;">Computing schedule…</div>';
+    setTimeout(()=>{const res=computeAutoFill();pendingFillResult=res.result;renderAutoFillPreview(res);document.getElementById('applyFillBtn').disabled=false;},60);
+  })();
 }
  
 function computeAutoFill(){
@@ -697,6 +777,7 @@ function computeAutoFill(){
   const fullDayNums=new Set();for(let d=4;d<=days;d+=4)fullDayNums.add(d);
   const result={},fullCount={},totalCount={},satAssigned=new Set(),sunAssigned=new Set(),conflicts=[];
   doctors.forEach(d=>{fullCount[d]=0;totalCount[d]=0;});
+  const quota=window._prevMonthFullCounts||{};
  
   for(let day=1;day<=days;day++){
     const ds=fmtDate(y,m,day),prevDs=prevDate(ds),dow=new Date(y,m,day).getDay();
@@ -713,8 +794,10 @@ function computeAutoFill(){
     function pickBest(unit,wantSet){
       const pool=getUnitDoctors(unit);
       const weekendExcluded=d=>(isSat&&satAssigned.has(d))||(isSun&&sunAssigned.has(d));
-      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
-      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d));
+      const overQuota=d=>isFullDay&&quota[d]!==undefined&&quota[d]>0&&fullCount[d]>=quota[d];
+      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!overQuota(d));
+      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!overQuota(d));
+      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!overQuota(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d));
       if(!a.length)a=[...pool];
@@ -751,9 +834,13 @@ function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
     <div class="stat-chip">📅 <strong>${days}</strong> days</div>
     ${conflicts.length?`<div class="stat-chip" style="background:#fce4ec;color:#c62828;border-color:var(--leave-b)">⚠ <strong>${conflicts.length}</strong> warning${conflicts.length>1?'s':''}</div>`:''}
   </div>`;
-  html+=`<details style="margin-bottom:0.75rem;"><summary style="font-size:0.72rem;font-weight:600;cursor:pointer;color:var(--header);padding:0.3rem 0;user-select:none;">Duty Distribution</summary>
-    <div class="dist-unit-head u1">Unit 1</div><div class="dist-grid">${u1.map(d=>`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b> full, <b>${totalCount[d]||0}</b> total</div>`).join('')}</div>
-    <div class="dist-unit-head u2">Unit 2</div><div class="dist-grid">${u2.map(d=>`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b> full, <b>${totalCount[d]||0}</b> total</div>`).join('')}</div>
+  const quota=window._prevMonthFullCounts||{};
+  const prevLabel=window._prevMonthLabel||'prev month';
+  const quotaActive=Object.keys(quota).length>0;
+  if(quotaActive){html+=`<div style="font-size:0.68rem;background:#fff3e0;color:#e65100;border:1px solid #ffb74d;border-radius:4px;padding:0.4rem 0.8rem;margin-bottom:0.6rem;">📊 <strong>Quota active</strong> — Full day caps based on ${prevLabel} counts: each doctor gets at most their previous month's full day count.</div>`;}
+  html+=`<details style="margin-bottom:0.75rem;"><summary style="font-size:0.72rem;font-weight:600;cursor:pointer;color:var(--header);padding:0.3rem 0;user-select:none;">Duty Distribution ${quotaActive?'(with quota)':''}</summary>
+    <div class="dist-unit-head u1">Unit 1</div><div class="dist-grid">${u1.map(d=>{const cap=quota[d];const capTxt=cap!==undefined?` / ${cap} quota`:'';return`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b>${capTxt} full, <b>${totalCount[d]||0}</b> total</div>`;}).join('')}</div>
+    <div class="dist-unit-head u2">Unit 2</div><div class="dist-grid">${u2.map(d=>{const cap=quota[d];const capTxt=cap!==undefined?` / ${cap} quota`:'';return`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b>${capTxt} full, <b>${totalCount[d]||0}</b> total</div>`;}).join('')}</div>
   </details>`;
   if(conflicts.length){html+=`<div class="conflict-box"><h4>⚠ Warnings</h4>${conflicts.map(c=>`<div style="margin-top:3px">• ${c.date}: ${c.msg}</div>`).join('')}</div>`;}
   html+=`<table class="preview-table"><thead><tr><th>Date</th><th>Day</th><th>Sched.</th><th>Doctor 1</th><th>Doctor 2</th><th>PDO Next</th></tr></thead><tbody>`;
