@@ -227,14 +227,9 @@ tbody tr.saturday-row{background:#fff8f0;}
 .fullday-unit-label.u1{background:var(--u1-bg);color:var(--u1);border:1px solid var(--u1-b);}
 .fullday-unit-label.u2{background:var(--u2-bg);color:var(--u2);border:1px solid var(--u2-b);}
 .fullday-chips{display:flex;flex-wrap:wrap;gap:5px;}
-.fd-chip{display:inline-flex;align-items:center;gap:5px;border-radius:4px;font-size:0.7rem;padding:0.22rem 0.6rem;border:1px solid;}
-.fd-chip.fd-zero{background:#f5f5f5;color:#888;border-color:#ddd;}
-.fd-chip.fd-low{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;}
-.fd-chip.fd-mid{background:#e3f2fd;color:#1565c0;border-color:#90caf9;}
-.fd-chip.fd-high{background:#fff3e0;color:#e65100;border-color:#ffb74d;}
+.fd-chip{display:inline-flex;align-items:center;gap:6px;border-radius:4px;font-size:0.7rem;padding:0.22rem 0.65rem 0.22rem 0.5rem;border:1px solid #c5cae9;background:#f0f0f8;color:#333;}
 .fd-chip .fd-name{font-weight:500;}
-.fd-chip .fd-badge{background:currentColor;color:#fff;border-radius:10px;font-size:0.62rem;font-weight:700;padding:1px 7px;line-height:1.4;opacity:1;filter:none;}
-.fd-chip .fd-badge span{color:#fff;}
+.fd-chip .fd-badge{display:inline-flex;align-items:center;justify-content:center;background:#1a2540;color:#fff;border-radius:50%;width:20px;height:20px;font-size:0.65rem;font-weight:700;flex-shrink:0;}
 .fd-divider{border:none;border-top:1px solid var(--border);margin:0;}
 .quota-note{font-size:0.65rem;color:var(--muted);padding:0.3rem 1rem 0.4rem;background:#fffde7;border-top:1px solid #f9e79f;display:flex;align-items:center;gap:5px;}
 </style>
@@ -265,7 +260,7 @@ tbody tr.saturday-row{background:#fff8f0;}
   <div id="fullDayBody" style="padding:0.4rem 1rem 0.5rem;">
     <div style="font-size:0.72rem;color:var(--muted);padding:0.5rem 0;">Loading...</div>
   </div>
-  <div class="quota-note">⚡ <strong>Auto-fill quota:</strong> Each doctor's full day count this month is used as their cap for next month's auto-fill.</div>
+  <div class="quota-note">⚡ <strong>Cycle rule:</strong> A doctor who completes their full day cycle will only get their next full day after every unit member finishes their current cycle.</div>
 </div>
 <div class="doctor-chips-wrap" id="doctorChipsWrap"></div>
 <div class="toolbar">
@@ -537,15 +532,11 @@ function renderFullDayPanel(){
   const counts=getFullCountForMonth();
   const u1=getUnitDoctors('unit1'),u2=getUnitDoctors('unit2');
   document.getElementById('fullDayMonthLabel').textContent=MONTHS[curMonth]+' '+curYear;
-  // Determine max for colour coding
-  const allVals=doctors.map(d=>counts[d]||0);
-  const maxVal=Math.max(...allVals,1);
   function chip(d){
     const n=counts[d]||0;
-    let cls=n===0?'fd-zero':n<=1?'fd-low':n<=3?'fd-mid':'fd-high';
-    return`<div class="fd-chip ${cls}" title="${d}: ${n} full day${n!==1?'s':''}">
+    return`<div class="fd-chip" title="${d}: ${n} full day${n!==1?'s':''}">
+      <span class="fd-badge">${n}</span>
       <span class="fd-name">${d.replace('Dr.','Dr. ')}</span>
-      <span class="fd-badge"><span>${n}</span></span>
     </div>`;
   }
   let html='';
@@ -777,7 +768,32 @@ function computeAutoFill(){
   const fullDayNums=new Set();for(let d=4;d<=days;d+=4)fullDayNums.add(d);
   const result={},fullCount={},totalCount={},satAssigned=new Set(),sunAssigned=new Set(),conflicts=[];
   doctors.forEach(d=>{fullCount[d]=0;totalCount[d]=0;});
-  const quota=window._prevMonthFullCounts||{};
+ 
+  // Previous month full counts loaded by openAutoFill (used as each doctor's cycle size)
+  // CYCLE QUOTA RULE: Each doctor's "cycle" = their prev-month full count (min 1).
+  // No doctor starts their next cycle until ALL doctors in the same unit have completed the current cycle.
+  // i.e. within a unit, doctor D can only get their (C+1)th full day once every other unit-member has >= C full days.
+  const prevCounts=window._prevMonthFullCounts||{};
+  // Cycle size per unit: use the max prev-month full count among unit members (so everyone gets that many)
+  function getCycleSize(unit){
+    const pool=getUnitDoctors(unit);
+    const vals=pool.map(d=>prevCounts[d]||0);
+    const mx=Math.max(...vals,1);
+    return mx;
+  }
+  // "Cycle-blocked": doctor d is blocked from getting another FULL if doing so would put them
+  // ahead of everyone else in their unit by more than one cycle.
+  function cycleBlocked(d,unit){
+    const pool=getUnitDoctors(unit);
+    const cycleSize=getCycleSize(unit);
+    if(cycleSize===0)return false;
+    // How many complete cycles has doctor d finished?
+    const dCycles=Math.floor(fullCount[d]/cycleSize);
+    // What is the minimum cycles completed by any unit member?
+    const minCycles=Math.min(...pool.map(p=>Math.floor(fullCount[p]/cycleSize)));
+    // Block if doctor d is already a full cycle ahead of the slowest member
+    return dCycles>minCycles;
+  }
  
   for(let day=1;day<=days;day++){
     const ds=fmtDate(y,m,day),prevDs=prevDate(ds),dow=new Date(y,m,day).getDay();
@@ -794,16 +810,19 @@ function computeAutoFill(){
     function pickBest(unit,wantSet){
       const pool=getUnitDoctors(unit);
       const weekendExcluded=d=>(isSat&&satAssigned.has(d))||(isSun&&sunAssigned.has(d));
-      const overQuota=d=>isFullDay&&quota[d]!==undefined&&quota[d]>0&&fullCount[d]>=quota[d];
-      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!overQuota(d));
-      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!overQuota(d));
-      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!overQuota(d));
+      // On full-day slots, apply cycle-block so no one races ahead
+      const blocked=d=>isFullDay&&cycleBlocked(d,unit);
+      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!blocked(d));
+      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!blocked(d));
+      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!blocked(d));
+      // Fallback: relax cycle block so roster is always filled
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d));
       if(!a.length)a=[...pool];
       return[...a].sort((a,b)=>{
         const wa=wantSet.has(a)?0:1,wb=wantSet.has(b)?0:1;
         if(wa!==wb)return wa-wb;
+        // Prefer doctor with fewer full days (most behind in cycle)
         return isFullDay?fullCount[a]-fullCount[b]||totalCount[a]-totalCount[b]:totalCount[a]-totalCount[b];
       })[0]||null;
     }
@@ -837,7 +856,11 @@ function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
   const quota=window._prevMonthFullCounts||{};
   const prevLabel=window._prevMonthLabel||'prev month';
   const quotaActive=Object.keys(quota).length>0;
-  if(quotaActive){html+=`<div style="font-size:0.68rem;background:#fff3e0;color:#e65100;border:1px solid #ffb74d;border-radius:4px;padding:0.4rem 0.8rem;margin-bottom:0.6rem;">📊 <strong>Quota active</strong> — Full day caps based on ${prevLabel} counts: each doctor gets at most their previous month's full day count.</div>`;}
+  if(quotaActive){
+    const u1cs=Math.max(...getUnitDoctors('unit1').map(d=>quota[d]||0),1);
+    const u2cs=Math.max(...getUnitDoctors('unit2').map(d=>quota[d]||0),1);
+    html+=`<div style="font-size:0.68rem;background:#fff3e0;color:#e65100;border:1px solid #ffb74d;border-radius:4px;padding:0.4rem 0.8rem;margin-bottom:0.6rem;">📊 <strong>Cycle quota active</strong> (based on ${prevLabel}) — U1 cycle: <b>${u1cs}</b> full days, U2 cycle: <b>${u2cs}</b> full days. A doctor's next cycle starts only after every unit member finishes the current cycle.</div>`;
+  }
   html+=`<details style="margin-bottom:0.75rem;"><summary style="font-size:0.72rem;font-weight:600;cursor:pointer;color:var(--header);padding:0.3rem 0;user-select:none;">Duty Distribution ${quotaActive?'(with quota)':''}</summary>
     <div class="dist-unit-head u1">Unit 1</div><div class="dist-grid">${u1.map(d=>{const cap=quota[d];const capTxt=cap!==undefined?` / ${cap} quota`:'';return`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b>${capTxt} full, <b>${totalCount[d]||0}</b> total</div>`;}).join('')}</div>
     <div class="dist-unit-head u2">Unit 2</div><div class="dist-grid">${u2.map(d=>{const cap=quota[d];const capTxt=cap!==undefined?` / ${cap} quota`:'';return`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b>${capTxt} full, <b>${totalCount[d]||0}</b> total</div>`;}).join('')}</div>
