@@ -89,7 +89,7 @@ tr.sunday td.day-cell{font-weight:700;}
 .udb-u1{background:var(--u1-bg);color:var(--u1);border:1px solid var(--u1-b);}
 .udb-u2{background:var(--u2-bg);color:var(--u2);border:1px solid var(--u2-b);}
 .udb-both{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
-td.duty-cell{padding:4px 6px;min-width:420px;}
+td.duty-cell{padding:4px 6px;min-width:320px;}
 .duty-rows{display:flex;flex-direction:column;gap:4px;}
 .duty-row-item{display:flex;gap:4px;align-items:center;}
 .slot-label{font-size:0.58rem;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap;min-width:28px;text-align:center;border:1px solid;}
@@ -232,6 +232,11 @@ tbody tr.saturday-row{background:#fff8f0;}
 .fd-chip .fd-badge{display:inline-flex;align-items:center;justify-content:center;background:#1a2540;color:#fff;border-radius:50%;width:20px;height:20px;font-size:0.65rem;font-weight:700;flex-shrink:0;}
 .fd-divider{border:none;border-top:1px solid var(--border);margin:0;}
 .quota-note{font-size:0.65rem;color:var(--muted);padding:0.3rem 1rem 0.4rem;background:#fffde7;border-top:1px solid #f9e79f;display:flex;align-items:center;gap:5px;}
+.fullday-badge{display:inline-block;background:var(--full-bg);color:var(--full-text);border:1px solid var(--full-b);border-radius:3px;font-size:0.62rem;font-weight:700;padding:2px 8px;letter-spacing:0.03em;}
+.leave-badge{display:inline-block;background:var(--leave-bg);color:var(--leave-text);border:1px solid var(--leave-b);border-radius:3px;font-size:0.62rem;font-weight:700;padding:2px 8px;}
+.leave-toggle{border:1px solid var(--border-dark);background:#f5f5f5;color:#666;font-family:var(--font);font-size:0.62rem;padding:2px 8px;cursor:pointer;border-radius:3px;white-space:nowrap;margin-left:2px;}
+.leave-toggle:hover{background:#eee;}
+.leave-toggle.on-leave{background:var(--leave-bg);color:var(--leave-text);border-color:var(--leave-b);font-weight:600;}
 </style>
 </head>
 <body>
@@ -247,9 +252,9 @@ tbody tr.saturday-row{background:#fff8f0;}
 </div>
 <div class="summary-bar">
   <div class="summary-item"><div class="s-val" id="sumTotal">—</div><div class="s-lbl">Total Staff</div></div>
-  <div class="summary-item on-duty"><div class="s-val" id="sumOnDuty">—</div><div class="s-lbl">On Duty Today</div></div>
-  <div class="summary-item full"><div class="s-val" id="sumFull">—</div><div class="s-lbl">Full Duty Today</div></div>
+  <div class="summary-item full"><div class="s-val" id="sumFull">—</div><div class="s-lbl">Full Day Today</div></div>
   <div class="summary-item pdo"><div class="s-val" id="sumPdo">—</div><div class="s-lbl">PDO Today</div></div>
+  <div class="summary-item on-duty"><div class="s-val" id="sumOnDuty">—</div><div class="s-lbl">Regular (9–4) Today</div></div>
 </div>
 <!-- Full Day Count Panel -->
 <div class="fullday-panel" id="fullDayPanel">
@@ -260,7 +265,7 @@ tbody tr.saturday-row{background:#fff8f0;}
   <div id="fullDayBody" style="padding:0.4rem 1rem 0.5rem;">
     <div style="font-size:0.72rem;color:var(--muted);padding:0.5rem 0;">Loading...</div>
   </div>
-  <div class="quota-note">⚡ <strong>Cycle rule:</strong> A doctor who completes their full day cycle will only get their next full day after every unit member finishes their current cycle.</div>
+  <div class="quota-note">⚡ <strong>Round-robin cycle:</strong> Every day one doctor per unit is assigned full day duty. A doctor who completes a cycle (e.g. 5 full days) waits until all unit members finish the same cycle before getting their next full day.</div>
 </div>
 <div class="doctor-chips-wrap" id="doctorChipsWrap"></div>
 <div class="toolbar">
@@ -298,13 +303,12 @@ tbody tr.saturday-row{background:#fff8f0;}
   </div>
 </div>
 <div class="legend">
-  <div class="legend-item"><div class="legend-box" style="background:var(--reg-bg);border-color:var(--reg-b)"></div>Regular</div>
-  <div class="legend-item"><div class="legend-box" style="background:var(--full-bg);border-color:var(--full-b)"></div>Full Day</div>
+  <div class="legend-item"><div class="legend-box" style="background:var(--full-bg);border-color:var(--full-b)"></div>Full Day Duty</div>
   <div class="legend-item"><div class="legend-box" style="background:var(--leave-bg);border-color:var(--leave-b)"></div>Leave</div>
-  <div class="legend-item"><div class="legend-box" style="background:var(--pdo-bg);border-color:var(--pdo-b)"></div>PDO</div>
-  <div class="legend-item"><div class="legend-box" style="background:var(--u1-bg);border-color:var(--u1-b)"></div>Unit 1 day</div>
-  <div class="legend-item"><div class="legend-box" style="background:var(--u2-bg);border-color:var(--u2-b)"></div>Unit 2 day</div>
-  <div class="legend-item"><span style="font-size:0.68rem;">Sunday = one from each unit</span></div>
+  <div class="legend-item"><div class="legend-box" style="background:var(--pdo-bg);border-color:var(--pdo-b)"></div>PDO (post full day off)</div>
+  <div class="legend-item"><div class="legend-box" style="background:var(--u1-bg);border-color:var(--u1-b)"></div>Unit 1</div>
+  <div class="legend-item"><div class="legend-box" style="background:var(--u2-bg);border-color:var(--u2-b)"></div>Unit 2</div>
+  <div class="legend-item"><span style="font-size:0.68rem;">All others: 9 AM – 4 PM regular hours</span></div>
 </div>
 </div>
  
@@ -323,7 +327,7 @@ tbody tr.saturday-row{background:#fff8f0;}
       <button onclick="portalChangeMonth(1)">&#8594;</button>
     </div>
     <div class="portal-legend">
-      <div class="portal-legend-item"><div class="pl-box" style="background:var(--reg-bg);border-color:var(--reg-b)"></div>Available</div>
+      <div class="portal-legend-item"><div class="pl-box" style="background:var(--full-bg);border-color:var(--full-b)"></div>Available for Full Day</div>
       <div class="portal-legend-item"><div class="pl-box" style="background:var(--leave-bg);border-color:var(--leave-b)"></div>Unavailable</div>
     </div>
     <div class="portal-status" id="portalStatus"></div>
@@ -429,8 +433,8 @@ async function api(method,table,params='',body=null){
   return data;
 }
  
-const SHIFTS=['—','REG','FULL','LEAVE'];
-const SHIFT_LABELS={'—':'—','REG':'Regular','FULL':'Full Day','LEAVE':'Leave'};
+const SHIFTS=['FULL','LEAVE'];
+const SHIFT_LABELS={'FULL':'Full Day','LEAVE':'Leave'};
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  
@@ -506,23 +510,24 @@ async function loadMonthData(){
 }
  
 function updateSummary(){
-  const ts=new Date().toISOString().slice(0,10),todayDocs=new Set(),fullToday=new Set();
-  ['s1','s2'].forEach(slot=>{const d=dutiesMap[ts+'_'+slot];if(d&&d.doctor_name)todayDocs.add(d.doctor_name);if(d&&d.shift_type==='FULL'&&d.doctor_name)fullToday.add(d.doctor_name);});
+  const ts=new Date().toISOString().slice(0,10),fullToday=new Set();
+  ['s1','s2'].forEach(slot=>{const d=dutiesMap[ts+'_'+slot];if(d&&d.doctor_name&&d.shift_type!=='LEAVE')fullToday.add(d.doctor_name);});
   const pdo=getPdoForDate(ts);
+  const regularToday=doctors.length-fullToday.size-pdo.length;
   document.getElementById('sumTotal').textContent=doctors.length;
-  document.getElementById('sumOnDuty').textContent=todayDocs.size||'0';
   document.getElementById('sumFull').textContent=fullToday.size||'0';
   document.getElementById('sumPdo').textContent=pdo.length||'0';
+  document.getElementById('sumOnDuty').textContent=Math.max(0,regularToday)||'0';
   renderFullDayPanel();
 }
  
 // ── Full Day Count Panel ───────────────────────────────────────
 function getFullCountForMonth(){
-  // Count FULL shift duties for each doctor in dutiesMap (current loaded month)
+  // Count full day duties per doctor (any slot that is FULL or assigned and not LEAVE)
   const counts={};
   doctors.forEach(d=>{counts[d]=0;});
   Object.entries(dutiesMap).forEach(([key,val])=>{
-    if(val&&val.shift_type==='FULL'&&val.doctor_name&&counts.hasOwnProperty(val.doctor_name)){
+    if(val&&val.doctor_name&&val.shift_type!=='LEAVE'&&val.shift_type!=='—'&&counts.hasOwnProperty(val.doctor_name)){
       counts[val.doctor_name]++;
     }
   });
@@ -597,21 +602,25 @@ async function saveNote(date,note){
 // ── Handlers ──────────────────────────────────────────────────
 function handleDocChange(sel,date,slot){
   const key=date+'_'+slot;
-  if(!dutiesMap[key])dutiesMap[key]={doctor_name:'',shift_type:'—'};
+  // Always FULL day — preserve LEAVE if already set, else default to FULL
+  const existingShift=dutiesMap[key]?.shift_type;
+  const shift=(existingShift==='LEAVE')?'LEAVE':'FULL';
+  if(!dutiesMap[key])dutiesMap[key]={doctor_name:'',shift_type:'FULL'};
   dutiesMap[key].doctor_name=sel.value;
-  saveDuty(date,slot,sel.value,dutiesMap[key].shift_type);
+  dutiesMap[key].shift_type=shift;
+  saveDuty(date,slot,sel.value,shift);
   refreshPdoRow(date);updateSummary();
+  render();
 }
-function handleShiftChange(sel,date,slot){
-  const val=sel.value;
-  sel.className='shift-select'+(val==='—'?'':' s-'+val);
+function toggleLeave(date,slot){
   const key=date+'_'+slot;
-  if(!dutiesMap[key])dutiesMap[key]={doctor_name:'',shift_type:'—'};
-  dutiesMap[key].shift_type=val;
-  saveDuty(date,slot,dutiesMap[key].doctor_name,val);
-  const row=sel.closest('tr');
-  if(row){const s1=dutiesMap[date+'_s1']?.shift_type,s2=dutiesMap[date+'_s2']?.shift_type;row.classList.toggle('has-full',s1==='FULL'||s2==='FULL');}
-  refreshPdoRow(nextDate(date));updateSummary();
+  if(!dutiesMap[key])dutiesMap[key]={doctor_name:'',shift_type:'FULL'};
+  const cur=dutiesMap[key].shift_type;
+  const next=cur==='LEAVE'?'FULL':'LEAVE';
+  dutiesMap[key].shift_type=next;
+  saveDuty(date,slot,dutiesMap[key].doctor_name,next);
+  refreshPdoRow(date);refreshPdoRow(nextDate(date));updateSummary();
+  render();
 }
 function refreshPdoRow(ds){const row=document.querySelector(`tr[data-date="${ds}"]`);if(!row)return;const cell=row.querySelector('.pdo-cell');if(cell)cell.innerHTML=buildPdoHtml(ds);}
 function buildPdoHtml(ds){const names=getPdoForDate(ds);if(!names.length)return'<span class="pdo-empty">—</span>';return names.map(n=>`<span class="pdo-badge"><span class="pdo-count">P</span>${n.replace('Dr.','Dr. ')}</span>`).join('');}
@@ -649,12 +658,12 @@ function renderChips(){
 // ── Render table ──────────────────────────────────────────────
 function render(){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate(),todayStr=new Date().toISOString().slice(0,10);
-  document.getElementById('rosterTitle').textContent=MONTHS[m]+' - '+y+' (Duty Roster)';
+  document.getElementById('rosterTitle').textContent=MONTHS[m]+' - '+y+' (Full Day Duty Roster)';
   document.getElementById('monthLabel').textContent=MONTHS[m]+' '+y;
   document.getElementById('tableHead').innerHTML=`<tr>
     <th class="left" style="min-width:70px">Date</th>
     <th class="left" style="min-width:95px">Day</th>
-    <th style="min-width:420px">Doctors on Duty</th>
+    <th style="min-width:320px">Full Day Duty</th>
     <th style="min-width:180px">PDO Staff</th>
     <th class="want-col" style="min-width:140px">Want Dates</th>
     <th style="min-width:130px">Notes</th>
@@ -664,24 +673,25 @@ function render(){
     const uDocs=getUnitDoctors(unit);
     return'<option value="">— Doctor —</option>'+uDocs.map(d=>`<option value="${d}"${d===val?' selected':''}>${d}</option>`).join('');
   }
-  const mkShift=v=>SHIFTS.map(s=>`<option value="${s}"${s===v?' selected':''}>${SHIFT_LABELS[s]}</option>`).join('');
-  const sCls=v=>v&&v!=='—'?' s-'+v:'';
  
   let html='';
   for(let day=1;day<=days;day++){
     const dt=new Date(y,m,day),dow=dt.getDay(),ds=fmtDate(y,m,day);
-    const{s1:s1u,s2:s2u}=getSlotUnits(y,m,day);
-    const d1=dutiesMap[ds+'_s1']||{doctor_name:'',shift_type:'—'};
-    const d2=dutiesMap[ds+'_s2']||{doctor_name:'',shift_type:'—'};
-    const hasFull=d1.shift_type==='FULL'||d2.shift_type==='FULL';
+    const d1=dutiesMap[ds+'_s1']||{doctor_name:'',shift_type:'FULL'};
+    const d2=dutiesMap[ds+'_s2']||{doctor_name:'',shift_type:'FULL'};
+    const isLeave1=d1.shift_type==='LEAVE',isLeave2=d2.shift_type==='LEAVE';
     const nt=(notesMap[ds]||'').replace(/"/g,'&quot;');
- 
-    // Every day has both units
     const badge=`<span class="unit-day-badge udb-u1" style="margin-left:4px">U1</span><span class="unit-day-badge udb-u2" style="margin-left:2px">U2</span>`;
- 
     let cls=ds===todayStr?'today-row':dow===0?'sunday':'';
     if(dow===6)cls+=(cls?' ':'')+'saturday-row';
-    if(hasFull)cls+=(cls?' ':'')+'has-full';
+    // All rows have full day duty — highlight today
+    cls+=(cls?' ':'')+'has-full';
+ 
+    // Leave toggle button
+    function leaveBtn(slot,isLv,doc){
+      if(!doc)return'';
+      return`<button class="leave-toggle${isLv?' on-leave':''}" onclick="toggleLeave('${ds}','${slot}')" title="${isLv?'Mark present':'Mark leave'}">${isLv?'LEAVE':'On Duty'}</button>`;
+    }
  
     html+=`<tr class="${cls}" data-date="${ds}">
       <td class="date-cell">${String(day).padStart(2,'0')}.${String(m+1).padStart(2,'0')}.${String(y).slice(2)}</td>
@@ -692,15 +702,21 @@ function render(){
             <span class="slot-label lbl-u1">U1</span>
             <select class="doc-select" onchange="handleDocChange(this,'${ds}','s1')">${mkDocOpts('unit1',d1.doctor_name)}</select>
             <span class="print-doc-name" style="display:none;font-size:0.72rem;min-width:110px">${d1.doctor_name||'—'}</span>
-            <select class="shift-select${sCls(d1.shift_type)}" onchange="handleShiftChange(this,'${ds}','s1')">${mkShift(d1.shift_type)}</select>
-            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${d1.shift_type==='FULL'?'background:#e3f2fd;color:#1565c0':d1.shift_type==='REG'?'background:#e8f5e9;color:#2e7d32':d1.shift_type==='LEAVE'?'background:#fce4ec;color:#c62828':''}">${SHIFT_LABELS[d1.shift_type]||d1.shift_type}</span>
+            ${isLeave1
+              ? `<span class="leave-badge">LEAVE</span><button class="leave-toggle on-leave" onclick="toggleLeave('${ds}','s1')" title="Mark present">✕ Leave</button>`
+              : `<span class="fullday-badge">FULL DAY</span><button class="leave-toggle" onclick="toggleLeave('${ds}','s1')" title="Mark as leave">Mark Leave</button>`
+            }
+            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${isLeave1?'background:#fce4ec;color:#c62828':'background:#e3f2fd;color:#1565c0'}">${isLeave1?'Leave':'Full Day'}</span>
           </div>
           <div class="duty-row-item">
             <span class="slot-label lbl-u2">U2</span>
             <select class="doc-select" onchange="handleDocChange(this,'${ds}','s2')">${mkDocOpts('unit2',d2.doctor_name)}</select>
             <span class="print-doc-name" style="display:none;font-size:0.72rem;min-width:110px">${d2.doctor_name||'—'}</span>
-            <select class="shift-select${sCls(d2.shift_type)}" onchange="handleShiftChange(this,'${ds}','s2')">${mkShift(d2.shift_type)}</select>
-            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${d2.shift_type==='FULL'?'background:#e3f2fd;color:#1565c0':d2.shift_type==='REG'?'background:#e8f5e9;color:#2e7d32':d2.shift_type==='LEAVE'?'background:#fce4ec;color:#c62828':''}">${SHIFT_LABELS[d2.shift_type]||d2.shift_type}</span>
+            ${isLeave2
+              ? `<span class="leave-badge">LEAVE</span><button class="leave-toggle on-leave" onclick="toggleLeave('${ds}','s2')" title="Mark present">✕ Leave</button>`
+              : `<span class="fullday-badge">FULL DAY</span><button class="leave-toggle" onclick="toggleLeave('${ds}','s2')" title="Mark as leave">Mark Leave</button>`
+            }
+            <span class="print-shift" style="display:none;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;${isLeave2?'background:#fce4ec;color:#c62828':'background:#e3f2fd;color:#1565c0'}">${isLeave2?'Leave':'Full Day'}</span>
           </div>
         </div>
       </td>
@@ -711,6 +727,7 @@ function render(){
   }
   document.getElementById('tableBody').innerHTML=html;
 }
+ 
  
 // ── Staff Links ───────────────────────────────────────────────
 function openStaffLinks(){
@@ -765,41 +782,29 @@ function openAutoFill(){
  
 function computeAutoFill(){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate();
-  const fullDayNums=new Set();for(let d=4;d<=days;d+=4)fullDayNums.add(d);
-  const result={},fullCount={},totalCount={},satAssigned=new Set(),sunAssigned=new Set(),conflicts=[];
+  // Every day is a FULL DAY duty — round robin across all doctors in each unit
+  const result={},fullCount={},totalCount={},conflicts=[];
   doctors.forEach(d=>{fullCount[d]=0;totalCount[d]=0;});
  
-  // Previous month full counts loaded by openAutoFill (used as each doctor's cycle size)
-  // CYCLE QUOTA RULE: Each doctor's "cycle" = their prev-month full count (min 1).
-  // No doctor starts their next cycle until ALL doctors in the same unit have completed the current cycle.
-  // i.e. within a unit, doctor D can only get their (C+1)th full day once every other unit-member has >= C full days.
+  // CYCLE RULE: cycle size = prev month full count for that unit (max among unit members, min 1)
+  // Doctor cannot get their (N+1)th full day until every unit member has >= N full days
   const prevCounts=window._prevMonthFullCounts||{};
-  // Cycle size per unit: use the max prev-month full count among unit members (so everyone gets that many)
   function getCycleSize(unit){
     const pool=getUnitDoctors(unit);
-    const vals=pool.map(d=>prevCounts[d]||0);
-    const mx=Math.max(...vals,1);
-    return mx;
+    return Math.max(...pool.map(d=>prevCounts[d]||0),1);
   }
-  // "Cycle-blocked": doctor d is blocked from getting another FULL if doing so would put them
-  // ahead of everyone else in their unit by more than one cycle.
   function cycleBlocked(d,unit){
     const pool=getUnitDoctors(unit);
-    const cycleSize=getCycleSize(unit);
-    if(cycleSize===0)return false;
-    // How many complete cycles has doctor d finished?
-    const dCycles=Math.floor(fullCount[d]/cycleSize);
-    // What is the minimum cycles completed by any unit member?
-    const minCycles=Math.min(...pool.map(p=>Math.floor(fullCount[p]/cycleSize)));
-    // Block if doctor d is already a full cycle ahead of the slowest member
+    const cs=getCycleSize(unit);
+    const dCycles=Math.floor(fullCount[d]/cs);
+    const minCycles=Math.min(...pool.map(p=>Math.floor(fullCount[p]/cs)));
     return dCycles>minCycles;
   }
  
   for(let day=1;day<=days;day++){
     const ds=fmtDate(y,m,day),prevDs=prevDate(ds),dow=new Date(y,m,day).getDay();
-    const isSat=dow===6,isSun=dow===0,isFullDay=fullDayNums.has(day);
-    const{s1:s1u,s2:s2u}=getSlotUnits(y,m,day);
  
+    // PDO: doctors who did FULL yesterday get day off today
     const pdoToday=new Set();
     if(result[prevDs]){['s1','s2'].forEach(slot=>{const a=result[prevDs][slot];if(a&&a.shift==='FULL')pdoToday.add(a.doctor);});}
     else if(day===1){['s1','s2'].forEach(slot=>{const d=dutiesMap[prevDs+'_'+slot];if(d&&d.shift_type==='FULL'&&d.doctor_name)pdoToday.add(d.doctor_name);});}
@@ -809,40 +814,37 @@ function computeAutoFill(){
  
     function pickBest(unit,wantSet){
       const pool=getUnitDoctors(unit);
-      const weekendExcluded=d=>(isSat&&satAssigned.has(d))||(isSun&&sunAssigned.has(d));
-      // On full-day slots, apply cycle-block so no one races ahead
-      const blocked=d=>isFullDay&&cycleBlocked(d,unit);
-      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!blocked(d));
-      if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!weekendExcluded(d)&&!blocked(d));
+      // Apply round-robin cycle block
+      const blocked=d=>cycleBlocked(d,unit);
+      let a=pool.filter(d=>wantSet.has(d)&&!pdoToday.has(d)&&!unavailToday.has(d)&&!blocked(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d)&&!blocked(d));
-      // Fallback: relax cycle block so roster is always filled
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d)&&!unavailToday.has(d));
       if(!a.length)a=pool.filter(d=>!pdoToday.has(d));
       if(!a.length)a=[...pool];
       return[...a].sort((a,b)=>{
         const wa=wantSet.has(a)?0:1,wb=wantSet.has(b)?0:1;
         if(wa!==wb)return wa-wb;
-        // Prefer doctor with fewer full days (most behind in cycle)
-        return isFullDay?fullCount[a]-fullCount[b]||totalCount[a]-totalCount[b]:totalCount[a]-totalCount[b];
+        // Always pick fewest full days (round-robin)
+        return fullCount[a]-fullCount[b]||totalCount[a]-totalCount[b];
       })[0]||null;
     }
  
     const doc1=pickBest('unit1',wantToday);
     const doc2=pickBest('unit2',wantToday);
-    const shift=isFullDay?'FULL':'REG';
  
     const msgs=[];
-    if(!doc1)msgs.push('No doctor for slot1 (Unit 1)');
-    if(!doc2)msgs.push('No doctor for slot2 (Unit 2)');
+    if(!doc1)msgs.push('No doctor available for Unit 1');
+    if(!doc2)msgs.push('No doctor available for Unit 2');
  
-    if(doc1){totalCount[doc1]++;if(isFullDay)fullCount[doc1]++;if(isSat)satAssigned.add(doc1);if(isSun)sunAssigned.add(doc1);}
-    if(doc2){totalCount[doc2]++;if(isFullDay)fullCount[doc2]++;if(isSat)satAssigned.add(doc2);if(isSun)sunAssigned.add(doc2);}
+    if(doc1){totalCount[doc1]++;fullCount[doc1]++;}
+    if(doc2){totalCount[doc2]++;fullCount[doc2]++;}
  
-    result[ds]={s1:doc1?{doctor:doc1,shift,unit:'unit1'}:null,s2:doc2?{doctor:doc2,shift,unit:'unit2'}:null,su:'both',conflict:msgs.length>0,conflictMsg:msgs.join('; ')};
+    result[ds]={s1:doc1?{doctor:doc1,shift:'FULL',unit:'unit1'}:null,s2:doc2?{doctor:doc2,shift:'FULL',unit:'unit2'}:null,conflict:msgs.length>0,conflictMsg:msgs.join('; ')};
     if(msgs.length)conflicts.push({date:ds,msg:msgs.join('; ')});
   }
   return{result,conflicts,fullCount,totalCount};
 }
+ 
  
 function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
   const y=curYear,m=curMonth,days=new Date(y,m+1,0).getDate();
@@ -866,14 +868,13 @@ function renderAutoFillPreview({result,conflicts,fullCount,totalCount}){
     <div class="dist-unit-head u2">Unit 2</div><div class="dist-grid">${u2.map(d=>{const cap=quota[d];const capTxt=cap!==undefined?` / ${cap} quota`:'';return`<div class="dist-chip">${d.replace('Dr.','')} — <b>${fullCount[d]||0}</b>${capTxt} full, <b>${totalCount[d]||0}</b> total</div>`;}).join('')}</div>
   </details>`;
   if(conflicts.length){html+=`<div class="conflict-box"><h4>⚠ Warnings</h4>${conflicts.map(c=>`<div style="margin-top:3px">• ${c.date}: ${c.msg}</div>`).join('')}</div>`;}
-  html+=`<table class="preview-table"><thead><tr><th>Date</th><th>Day</th><th>Sched.</th><th>Doctor 1</th><th>Doctor 2</th><th>PDO Next</th></tr></thead><tbody>`;
+  html+=`<table class="preview-table"><thead><tr><th>Date</th><th>Day</th><th>Unit 1 (Full Day)</th><th>Unit 2 (Full Day)</th><th>PDO Tomorrow</th></tr></thead><tbody>`;
   for(let day=1;day<=days;day++){
-    const ds=fmtDate(y,m,day),r=result[ds],dow=DAYS_SHORT[new Date(y,m,day).getDay()],su=r?.su||'unit1';
-    const schedTxt=`<span style="font-size:0.62rem;background:${su==='both'?'#e8f5e9':su==='unit1'?'var(--u1-bg)':'var(--u2-bg)'};color:${su==='both'?'#2e7d32':su==='unit1'?'var(--u1)':'var(--u2)'};border:1px solid ${su==='both'?'#a5d6a7':su==='unit1'?'var(--u1-b)':'var(--u2-b)'};padding:1px 5px;border-radius:3px">${su==='both'?'Both':su==='unit1'?'U1':'U2'}</span>`;
+    const ds=fmtDate(y,m,day),r=result[ds],dow=DAYS_SHORT[new Date(y,m,day).getDay()];
     const pdoNext=[];if(r?.s1?.shift==='FULL')pdoNext.push(r.s1.doctor);if(r?.s2?.shift==='FULL'&&!pdoNext.includes(r.s2.doctor))pdoNext.push(r.s2.doctor);
-    const s1t=r?.s1?`<span class="${r.s1.shift==='FULL'?'preview-full-cell':''}">${r.s1.doctor} (${r.s1.shift})</span>`:'<span style="color:#ccc">—</span>';
-    const s2t=r?.s2?`<span class="${r.s2.shift==='FULL'?'preview-full-cell':''}">${r.s2.doctor} (${r.s2.shift})</span>`:'<span style="color:#ccc">—</span>';
-    html+=`<tr class="${r?.conflict?'preview-conflict':''}"><td>${String(day).padStart(2,'0')}.${String(m+1).padStart(2,'0')}.${String(y).slice(2)}${r?.conflict?'<span class="conflict-pill">⚠</span>':''}</td><td>${dow}</td><td>${schedTxt}</td><td>${s1t}</td><td>${s2t}</td><td style="font-size:0.65rem;color:var(--pdo-text)">${pdoNext.map(n=>n.replace('Dr.','')).join(', ')||'—'}</td></tr>`;
+    const s1t=r?.s1?`<span class="preview-full-cell">${r.s1.doctor}</span>`:'<span style="color:#ccc">—</span>';
+    const s2t=r?.s2?`<span class="preview-full-cell">${r.s2.doctor}</span>`:'<span style="color:#ccc">—</span>';
+    html+=`<tr class="${r?.conflict?'preview-conflict':''}"><td>${String(day).padStart(2,'0')}.${String(m+1).padStart(2,'0')}.${String(y).slice(2)}${r?.conflict?'<span class="conflict-pill">⚠</span>':''}</td><td>${dow}</td><td>${s1t}</td><td>${s2t}</td><td style="font-size:0.65rem;color:var(--pdo-text)">${pdoNext.map(n=>n.replace('Dr.','')).join(', ')||'—'}</td></tr>`;
   }
   html+=`</tbody></table>`;
   document.getElementById('autoFillBody').innerHTML=html;
@@ -890,7 +891,7 @@ async function applyAutoFill(){
       const saves=[];
       ['s1','s2'].forEach(slot=>{
         const a=r[slot];
-        if(a){saves.push(api('GET','duties',`date=eq.${ds}&slot=eq.${slot}&select=id`).then(ex=>ex.length?api('PATCH','duties',`date=eq.${ds}&slot=eq.${slot}`,{doctor_name:a.doctor,shift_type:a.shift}):api('POST','duties','',{date:ds,slot,doctor_name:a.doctor,shift_type:a.shift})));dutiesMap[ds+'_'+slot]={doctor_name:a.doctor,shift_type:a.shift};}
+        if(a){const sh='FULL';saves.push(api('GET','duties',`date=eq.${ds}&slot=eq.${slot}&select=id`).then(ex=>ex.length?api('PATCH','duties',`date=eq.${ds}&slot=eq.${slot}`,{doctor_name:a.doctor,shift_type:sh}):api('POST','duties','',{date:ds,slot,doctor_name:a.doctor,shift_type:sh})));dutiesMap[ds+'_'+slot]={doctor_name:a.doctor,shift_type:sh};}
         else{saves.push(api('DELETE','duties',`date=eq.${ds}&slot=eq.${slot}`).catch(()=>{}));delete dutiesMap[ds+'_'+slot];}
       });
       await Promise.all(saves);
